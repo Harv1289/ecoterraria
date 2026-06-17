@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>EcoTerraria 🌍</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;user-select:none;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0a0f0a;touch-action:none;}
+#wrapper{position:relative;width:100vw;height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:none;}
+
+/* HUD */
+#hud{position:absolute;top:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;padding:6px 10px;pointer-events:none;z-index:10;}
+.hud-pill{background:rgba(0,0,0,.72);border:1px solid #2d6a2d;border-radius:20px;padding:4px 10px;font-family:'Courier New',monospace;font-size:11px;color:#7fff7f;white-space:nowrap;}
+.hud-pill b{color:#fff;}
+
+/* Controles táctiles */
+#touch-controls{position:absolute;bottom:0;left:0;width:100%;display:flex;justify-content:space-between;align-items:flex-end;padding:12px 16px;z-index:20;pointer-events:none;}
+.dpad{display:flex;gap:6px;pointer-events:all;}
+.tbtn{width:58px;height:58px;border-radius:50%;border:2px solid rgba(100,200,100,0.5);background:rgba(0,80,0,0.55);display:flex;align-items:center;justify-content:center;font-size:22px;color:rgba(200,255,200,0.9);active-scale:.9;cursor:pointer;pointer-events:all;-webkit-tap-highlight-color:transparent;}
+.tbtn:active{background:rgba(0,140,0,0.7);transform:scale(0.92);}
+.tbtn-jump{width:66px;height:66px;border-color:rgba(100,255,100,0.6);background:rgba(0,100,20,0.6);font-size:26px;}
+.tbtn-open{width:62px;height:62px;border-color:rgba(255,220,0,0.6);background:rgba(80,60,0,0.6);font-size:22px;}
+.right-btns{display:flex;flex-direction:column;gap:8px;align-items:flex-end;pointer-events:all;}
+
+/* Quiz overlay */
+#quiz-overlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.88);z-index:50;padding:12px;}
+#quiz-box{background:#0d1f0d;border:2px solid #3a8a3a;border-radius:14px;width:100%;max-width:480px;padding:20px 18px 16px;font-family:'Segoe UI',Arial,sans-serif;}
+#quiz-title{font-size:11px;font-weight:700;color:#7fff7f;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+#quiz-badge{display:inline-block;background:#1a4a1a;border:1px solid #3a8a3a;border-radius:20px;font-size:12px;padding:3px 12px;color:#b0ffb0;margin-bottom:12px;}
+#quiz-q{font-size:15px;color:#e8ffe8;line-height:1.55;margin-bottom:16px;font-weight:600;}
+#quiz-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.qopt{background:#122012;border:1.5px solid #2d5a2d;border-radius:10px;padding:11px 10px;font-size:13px;color:#c8ffc8;cursor:pointer;line-height:1.35;text-align:center;transition:background .12s;}
+.qopt:active{background:#1e3a1e;}
+.qopt.correct{background:#0a3a0a;border-color:#4ddf4d;color:#7fff7f;}
+.qopt.wrong{background:#3a0a0a;border-color:#df4d4d;color:#ffaaaa;}
+#quiz-feedback{font-size:13px;line-height:1.5;color:#a0e0a0;padding:10px 12px;background:#0a180a;border-radius:8px;display:none;margin-bottom:12px;}
+#quiz-continue{display:none;width:100%;background:#1a5a1a;border:1.5px solid #5adf5a;border-radius:10px;padding:12px;color:#7fff7f;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.5px;}
+#quiz-continue:active{background:#2a6a2a;}
+
+/* Mensaje flotante */
+#msg{position:absolute;top:62px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);border:1px solid #5adf5a;border-radius:20px;padding:6px 18px;font-size:12px;font-weight:700;color:#7fff7f;pointer-events:none;opacity:0;transition:opacity .4s;white-space:nowrap;z-index:30;}
+
+/* Banner nivel */
+#level-banner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;font-weight:900;color:#fff;text-align:center;line-height:1.4;opacity:0;pointer-events:none;z-index:40;text-shadow:0 2px 12px #00ff0066;white-space:nowrap;}
+
+/* Pantalla título */
+#title-screen{position:absolute;inset:0;background:linear-gradient(180deg,#0a1f0a 0%,#050f05 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;z-index:100;padding:20px;}
+#title-screen h1{font-size:28px;font-weight:900;color:#7fff7f;text-shadow:0 0 24px #2aff2a55;letter-spacing:2px;}
+#title-screen .subtitle{font-size:13px;color:#5aaf5a;text-align:center;max-width:320px;line-height:1.7;}
+#btn-start{background:#1a5a1a;border:2px solid #5adf5a;border-radius:12px;padding:14px 40px;font-size:16px;font-weight:800;color:#7fff7f;cursor:pointer;margin-top:6px;letter-spacing:1px;}
+#btn-start:active{background:#2a7a2a;}
+.hint-box{background:rgba(0,40,0,.5);border:1px solid #1a4a1a;border-radius:10px;padding:10px 16px;font-size:11px;color:#4a8a4a;text-align:center;max-width:320px;line-height:1.7;}
+
+/* Victoria */
+#victory-screen{position:absolute;inset:0;background:linear-gradient(180deg,#051505 0%,#020802 100%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;padding:24px;text-align:center;}
+.v-trophy{font-size:64px;animation:bounce .8s infinite alternate;}
+@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-10px)}}
+.v-title{font-size:22px;font-weight:900;color:#ffdf2a;text-shadow:0 0 20px #ffdf2a88;}
+.v-msg{font-size:16px;font-weight:700;color:#7fff7f;line-height:1.6;max-width:340px;}
+.v-career{font-size:13px;color:#5adf5a;line-height:1.7;max-width:320px;border:1px solid #2a6a2a;border-radius:10px;padding:12px 16px;background:rgba(0,40,0,.5);}
+.v-coins{font-size:20px;font-weight:800;color:#ffdf2a;}
+#btn-restart{background:#1a5a1a;border:2px solid #5adf5a;border-radius:12px;padding:13px 36px;font-size:15px;font-weight:800;color:#7fff7f;cursor:pointer;margin-top:4px;}
+#btn-restart:active{background:#2a7a2a;}
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <canvas id="c"></canvas>
+
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-pill">❤️ <b id="h-hp">3</b></div>
+    <div class="hud-pill">🏆 <b id="h-lvl">1</b>/3</div>
+    <div class="hud-pill">💰 <b id="h-coins">0</b></div>
+    <div class="hud-pill">📦 <b id="h-chests">0/0</b></div>
+  </div>
+
+  <!-- Mensaje -->
+  <div id="msg"></div>
+
+  <!-- Banner nivel -->
+  <div id="level-banner"></div>
+
+  <!-- Controles táctiles -->
+  <div id="touch-controls">
+    <div class="dpad">
+      <div class="tbtn" id="btn-left">◀</div>
+      <div class="tbtn" id="btn-right">▶</div>
+    </div>
+    <div class="right-btns">
+      <div class="tbtn tbtn-open" id="btn-open">📦</div>
+      <div class="tbtn tbtn-jump" id="btn-jump">▲</div>
+    </div>
+  </div>
+
+  <!-- Quiz -->
+  <div id="quiz-overlay">
+    <div id="quiz-box">
+      <div id="quiz-title">🌿 PREGUNTA AMBIENTAL</div>
+      <div id="quiz-badge"></div>
+      <div id="quiz-q"></div>
+      <div id="quiz-opts"></div>
+      <div id="quiz-feedback"></div>
+      <button id="quiz-continue" onclick="continueAfterQuiz()">✅ CONTINUAR</button>
+    </div>
+  </div>
+
+  <!-- Pantalla inicio -->
+  <div id="title-screen">
+    <div style="font-size:52px">🌍</div>
+    <h1>ECOTERRARIA</h1>
+    <p class="subtitle">Explora mundos, abre cofres y responde preguntas sobre el <b style="color:#7fff7f">medio ambiente</b></p>
+    <button id="btn-start" onclick="startGame()">▶ JUGAR</button>
+    <div class="hint-box">
+      ◀ ▶ moverse &nbsp;|&nbsp; ▲ saltar<br>
+      📦 abrir cofre cercano
+    </div>
+  </div>
+
+  <!-- Pantalla victoria -->
+  <div id="victory-screen">
+    <div class="v-trophy">🏆</div>
+    <div class="v-title">¡FELICITACIONES!</div>
+    <div class="v-coins" id="v-coins">💰 0 monedas</div>
+    <div class="v-msg">¡Completaste todos los niveles y eres un guardián del planeta! 🌱</div>
+    <div class="v-career">
+      🌿 <b style="color:#7fff7f">¡Feliz Día del Ambiente!</b><br>
+      Les desea con mucho cariño la<br>
+      <b style="color:#ffdf2a">Carrera de Recursos Naturales Renovables</b> 🌳🌊☀️
+    </div>
+    <button id="btn-restart" onclick="restartGame()">🔄 JUGAR DE NUEVO</button>
+  </div>
+</div>
+
+<script>
+// ── CANVAS RESPONSIVO ──────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, scale;
+
+function resize() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const base = {w:800, h:520};
+  scale = Math.min(vw/base.w, vh/base.h);
+  W = Math.round(base.w * scale);
+  H = Math.round(base.h * scale);
+  canvas.width = base.w;
+  canvas.height = base.h;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  W = base.w; H = base.h;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── PREGUNTAS FÁCILES AMBIENTALES ────────────────────────────
+const ALL_Q = [
+  {cat:"🌱 Naturaleza", q:"¿Qué proceso usan las plantas para hacer su propio alimento con luz solar?", opts:["Respiración","Fotosíntesis","Digestión","Evaporación"], ans:1, fact:"¡La fotosíntesis! Las plantas usan la luz del sol para convertir CO₂ y agua en alimento y oxígeno.", reward:30},
+  {cat:"♻️ Reciclaje", q:"¿Qué significa la flecha en forma de triángulo en los productos reciclables?", opts:["Que es frágil","Que se puede reciclar","Que es peligroso","Que es orgánico"], ans:1, fact:"El símbolo de tres flechas en triángulo indica que el producto puede reciclarse o está hecho de material reciclado.", reward:25},
+  {cat:"💧 Agua", q:"¿Cuál de estos hábitos ahorra más agua en casa?", opts:["Bañarse en tina","Ducharse rápido","Dejar el grifo abierto","Lavar a mano siempre"], ans:1, fact:"Una ducha corta usa mucha menos agua que una bañera llena. ¡Cada gota cuenta!", reward:25},
+  {cat:"🌳 Árboles", q:"¿Para qué sirven los árboles en el medio ambiente?", opts:["Solo dan sombra","Producen oxígeno y limpian el aire","Solo dan frutos","Solo sirven de madera"], ans:1, fact:"Los árboles producen oxígeno, limpian el aire, dan hogar a animales y ayudan a regular el clima.", reward:30},
+  {cat:"🐾 Animales", q:"¿Cómo se llaman los animales que están en peligro de desaparecer para siempre?", opts:["Animales domésticos","En vía de extinción","Animales salvajes","Animales migratorios"], ans:1, fact:"Los animales en vía de extinción son aquellos cuya población es tan pequeña que podrían desaparecer del planeta.", reward:30},
+  {cat:"🌍 Planeta", q:"¿Qué capa protege a la Tierra de los rayos dañinos del Sol?", opts:["La atmósfera de CO₂","La capa de ozono","Las nubes","La capa de hielo"], ans:1, fact:"La capa de ozono actúa como un escudo que nos protege de los rayos ultravioleta del Sol.", reward:35},
+  {cat:"♻️ Reciclaje", q:"¿En qué contenedor van las botellas de plástico?", opts:["Negro (basura)","Azul (papel)","Amarillo (plástico)","Verde (vidrio)"], ans:2, fact:"Las botellas plásticas van en el contenedor amarillo. Reciclarlas reduce la contaminación y ahorra energía.", reward:25},
+  {cat:"🌱 Naturaleza", q:"¿Qué son los residuos orgánicos?", opts:["Plásticos usados","Restos de comida y plantas","Metales viejos","Ropa vieja"], ans:1, fact:"Los residuos orgánicos son restos de comida, frutas, verduras y plantas. Se pueden compostar para hacer abono natural.", reward:25},
+  {cat:"💧 Agua", q:"¿Cuál es la mayor fuente de agua dulce del planeta?", opts:["Los ríos","Los lagos","Los glaciares y casquetes polares","Las lluvias"], ans:2, fact:"La mayor reserva de agua dulce está en los glaciares y el hielo polar, aunque la mayor parte no está disponible fácilmente.", reward:35},
+  {cat:"🌍 Planeta", q:"¿Qué es el efecto invernadero?", opts:["Un tipo de jardín","El calentamiento de la Tierra por gases que atrapan el calor","Un fenómeno solo en el polo","Un tipo de eclipse"], ans:1, fact:"El efecto invernadero ocurre cuando gases como el CO₂ atrapan el calor del Sol, aumentando la temperatura del planeta.", reward:35},
+  {cat:"☀️ Energía", q:"¿Cuál de estas es una fuente de energía limpia y renovable?", opts:["Petróleo","Carbón","Energía solar","Gas natural"], ans:2, fact:"La energía solar no contamina y es inagotable. Los paneles solares convierten la luz del sol en electricidad.", reward:30},
+  {cat:"🌳 Árboles", q:"¿Qué es la deforestación?", opts:["Plantar muchos árboles","Talar o quemar bosques en grandes cantidades","Regar plantas del jardín","Podar árboles de la ciudad"], ans:1, fact:"La deforestación es la destrucción masiva de bosques. Afecta el clima, la biodiversidad y los suelos del planeta.", reward:30},
+  {cat:"🐝 Animales", q:"¿Por qué son tan importantes las abejas para el planeta?", opts:["Porque hacen miel rica","Porque polinizan las plantas y cultivos","Porque son venenosas","Porque viven en colmenas"], ans:1, fact:"Las abejas polinizan las flores de frutas, verduras y plantas silvestres. Sin ellas, gran parte de nuestra comida desaparecería.", reward:30},
+  {cat:"🌱 Naturaleza", q:"¿Qué es un ecosistema?", opts:["Un tipo de planta exótica","El conjunto de seres vivos y su ambiente natural","Solo los animales de una zona","Solo el clima de una región"], ans:1, fact:"Un ecosistema es el conjunto de plantas, animales, microorganismos y el ambiente físico donde viven e interactúan.", reward:35},
+  {cat:"♻️ Reciclaje", q:"¿Cuánto tiempo tarda en degradarse una bolsa de plástico?", opts:["1 año","10 años","100 a 500 años","Solo 1 mes"], ans:2, fact:"Una bolsa plástica puede tardar entre 100 y 500 años en degradarse. Por eso es mejor usar bolsas reutilizables.", reward:30},
+  {cat:"💧 Agua", q:"¿Qué podemos hacer para cuidar el agua en casa?", opts:["Bañarse más de 30 min","Regar con manguera siempre","Cerrar el grifo cuando no se usa","Dejar correr el agua al lavar"], ans:2, fact:"Cerrar el grifo cuando no se usa es clave. ¡Un grifo goteando puede desperdiciar hasta 30 litros de agua al día!", reward:25},
+];
+
+// ── ESTADO ────────────────────────────────────────────────────
+const keys = {left:false, right:false, jump:false};
+let gameRunning=false, quizOpen=false, activeChest=null;
+let qPool=[], level=1, worldOffset=0, msgTimer=null;
+
+const TILE=32;
+const player={x:120,y:200,w:22,h:30,vx:0,vy:0,onGround:false,hp:3,coins:0,facing:1,ft:0};
+
+// ── MUNDO ────────────────────────────────────────────────────
+function buildWorld(lvl){
+  const plats=[], chests=[];
+  for(let x=0;x<2800;x+=TILE) plats.push({x,y:H-TILE,w:TILE,h:TILE,type:'g'});
+
+  const layouts=[
+    [{x:180,y:360},{x:240,y:360},{x:420,y:300},{x:480,y:300},{x:660,y:340},{x:720,y:340},{x:900,y:280},{x:960,y:280},{x:1140,y:320},{x:1200,y:320}],
+    [{x:120,y:380},{x:360,y:310},{x:420,y:310},{x:600,y:260},{x:660,y:260},{x:840,y:300},{x:900,y:300},{x:1080,y:250},{x:1140,y:250}],
+    [{x:100,y:400},{x:200,y:360},{x:380,y:300},{x:480,y:260},{x:660,y:290},{x:760,y:250},{x:940,y:280},{x:1040,y:240},{x:1180,y:260}],
+  ];
+  const lay=layouts[Math.min(lvl-1,2)];
+  lay.forEach(p=>plats.push({x:p.x,y:p.y,w:TILE,h:TILE,type:'s'}));
+
+  // Cofres: 2 en suelo + 3 en plataformas
+  [[280,H-TILE-28],[680,H-TILE-28]].forEach((c,i)=>
+    chests.push({x:c[0],y:c[1],w:24,h:24,opened:false,id:i}));
+  [0,2,4,6,8].filter((_,i)=>i<3).forEach((idx,i)=>{
+    const p=lay[idx];
+    chests.push({x:p.x+4,y:p.y-28,w:24,h:24,opened:false,id:i+2});
+  });
+  return {plats,chests};
+}
+
+let world={plats:[],chests:[]};
+
+// ── DIBUJO ────────────────────────────────────────────────────
+const BG=[
+  {top:'#0a1f0a',bot:'#051005'},
+  {top:'#060b1a',bot:'#030610'},
+  {top:'#0a0618',bot:'#050310'},
+];
+
+function drawBG(){
+  const b=BG[Math.min(level-1,2)];
+  const g=ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,b.top);g.addColorStop(1,b.bot);
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+
+  // Estrellas nivel 2 y 3
+  if(level>1){
+    ctx.fillStyle='rgba(255,255,255,.6)';
+    for(let i=0;i<50;i++){
+      ctx.fillRect((i*137+(worldOffset*.04))%W,(i*79)%(H*.5),1.5,1.5);
+    }
+  }
+
+  // Elementos decorativos
+  if(level===1) drawTrees();
+  if(level===2) drawCave();
+  if(level===3) drawMountains();
+}
+
+function drawTrees(){
+  [50,190,370,530,710,890,1070,1220].forEach(tx=>{
+    const sx=tx-worldOffset*.25;
+    if(sx<-50||sx>W+50)return;
+    ctx.fillStyle='#1a3a0a';ctx.fillRect(sx+16,H-160,8,80);
+    ctx.fillStyle='#0d2f0a';ctx.beginPath();ctx.arc(sx+20,H-165,25,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#155a10';ctx.beginPath();ctx.arc(sx+20,H-183,18,0,Math.PI*2);ctx.fill();
+  });
+}
+
+function drawCave(){
+  ctx.fillStyle='#0a1a08';
+  for(let i=0;i<10;i++){
+    const cx=(i*130-worldOffset*.18)%W;
+    ctx.beginPath();ctx.moveTo(cx,0);ctx.lineTo(cx-16,70+i*8);ctx.lineTo(cx+16,70+i*8);ctx.closePath();ctx.fill();
+  }
+}
+
+function drawMountains(){
+  ctx.fillStyle='#0f2010';
+  [[0,260],[220,170],[440,230],[660,150],[880,210]].forEach(([mx,my])=>{
+    const sx=mx-worldOffset*.2;
+    ctx.beginPath();ctx.moveTo(sx,H-TILE);ctx.lineTo(sx+110,my);ctx.lineTo(sx+220,H-TILE);ctx.closePath();ctx.fill();
+  });
+  // Nieve
+  ctx.fillStyle='rgba(220,255,220,.15)';
+  [[0,260],[220,170],[440,230],[660,150],[880,210]].forEach(([mx,my])=>{
+    const sx=mx-worldOffset*.2;
+    ctx.beginPath();ctx.moveTo(sx+90,my+5);ctx.lineTo(sx+110,my);ctx.lineTo(sx+130,my+5);ctx.lineTo(sx+110,my+28);ctx.closePath();ctx.fill();
+  });
+}
+
+function drawPlatforms(){
+  world.plats.forEach(p=>{
+    const sx=p.x-worldOffset;
+    if(sx>W+TILE||sx<-TILE)return;
+    if(p.type==='g'){
+      ctx.fillStyle='#1a6a18';ctx.fillRect(sx,p.y,p.w,6);
+      ctx.fillStyle='#0d4208';ctx.fillRect(sx,p.y+6,p.w,p.h-6);
+      // flores decorativas
+      if(p.x%96===0){ctx.font='10px sans-serif';ctx.fillText('🌸',sx+4,p.y+4);}
+    } else {
+      ctx.fillStyle='#1e2e1a';ctx.fillRect(sx,p.y,p.w,p.h);
+      ctx.fillStyle='#152510';ctx.fillRect(sx+1,p.y+1,p.w-2,p.h-2);
+      ctx.fillStyle='#1a2a14';
+      for(let r=0;r<p.h;r+=10)for(let c=0;c<p.w;c+=10)ctx.fillRect(sx+c,p.y+r,2,2);
+    }
+  });
+}
+
+function drawChests(){
+  world.chests.forEach(ch=>{
+    const sx=ch.x-worldOffset;
+    if(sx>W+40||sx<-40)return;
+    const near=!ch.opened&&
+      Math.abs((player.x+player.w/2)-(ch.x+ch.w/2))<52&&
+      Math.abs((player.y+player.h/2)-(ch.y+ch.h/2))<62;
+    // sombra
+    ctx.fillStyle='rgba(0,0,0,.3)';ctx.fillRect(sx+3,ch.y+ch.h+2,ch.w-2,4);
+    // cuerpo
+    ctx.fillStyle=ch.opened?'#1a2a10':'#3a7a10';ctx.fillRect(sx,ch.y,ch.w,ch.h);
+    ctx.fillStyle=ch.opened?'#0d1a08':'#2a6a08';ctx.fillRect(sx+2,ch.y+2,ch.w-4,ch.h/2-2);
+    // borde
+    ctx.fillStyle='#5adf2a';
+    ctx.fillRect(sx,ch.y+ch.h/2-1,ch.w,3);
+    ctx.fillRect(sx+ch.w/2-1,ch.y,3,ch.h);
+    // icono
+    ctx.textAlign='center';
+    ctx.font='13px sans-serif';
+    ctx.fillText(ch.opened?'✓':'📦',sx+ch.w/2,ch.y+ch.h-5);
+    // hint táctil
+    if(near){
+      ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(sx-8,ch.y-26,42,18);
+      ctx.fillStyle='#ffdf2a';ctx.font='bold 9px Inter,Arial';
+      ctx.fillText('📦 ABRIR',sx+ch.w/2,ch.y-12);
+    }
+    ctx.textAlign='left';
+  });
+}
+
+function drawPlayer(){
+  const px=player.x-worldOffset, py=player.y;
+  ctx.save();
+  if(player.facing<0){ctx.scale(-1,1);ctx.translate(-2*px-player.w,0);}
+  // Sombra
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.fillRect(px+3,py+player.h,player.w-6,5);
+  // Cuerpo
+  ctx.fillStyle='#2ab82a';ctx.fillRect(px+4,py+12,player.w-8,player.h-12);
+  // Cabeza
+  ctx.fillStyle='#f0c870';ctx.fillRect(px+4,py+2,player.w-8,14);
+  // Ojos
+  ctx.fillStyle='#1a1a1a';ctx.fillRect(px+7,py+6,3,3);ctx.fillRect(px+13,py+6,3,3);
+  // Mochila
+  ctx.fillStyle='#1a7a1a';ctx.fillRect(px+player.w-10,py+13,7,12);
+  // Piernas
+  const lo=player.onGround&&Math.abs(player.vx)>.5?Math.sin(player.ft*.18)*4:0;
+  ctx.fillStyle='#186a18';
+  ctx.fillRect(px+4,py+player.h-10+lo,7,10);
+  ctx.fillRect(px+player.w-11,py+player.h-10-lo,7,10);
+  ctx.restore();
+}
+
+// ── FÍSICA ───────────────────────────────────────────────────
+function physics(){
+  if(quizOpen)return;
+  if(keys.left){player.vx-=1.5;player.facing=-1;}
+  if(keys.right){player.vx+=1.5;player.facing=1;}
+  if(keys.jump&&player.onGround){player.vy=-12;player.onGround=false;keys.jump=false;}
+
+  player.vx*=.78;
+  player.vy+=.55;
+  player.vx=Math.max(-6,Math.min(6,player.vx));
+  if(keys.left||keys.right)player.ft++;else player.ft=0;
+
+  player.x+=player.vx;
+  player.y+=player.vy;
+  player.onGround=false;
+
+  world.plats.forEach(p=>{
+    if(player.x+player.w>p.x&&player.x<p.x+p.w&&
+       player.y+player.h>p.y&&player.y+player.h<p.y+p.h+Math.abs(player.vy)+2&&player.vy>=0){
+      player.y=p.y-player.h;player.vy=0;player.onGround=true;
+    }
+  });
+
+  if(player.x<0)player.x=0;
+  if(player.y>H+80){player.hp=Math.max(0,player.hp-1);player.x=120;player.y=180;showMsg('💀 -1 vida');}
+
+  const targetOff=player.x-W/3;
+  worldOffset=Math.max(0,Math.min(targetOff,2800-W));
+
+  // Check nivel completo
+  if(world.chests.every(c=>c.opened))nextLevel();
+}
+
+// ── QUIZ ─────────────────────────────────────────────────────
+function tryOpenChest(){
+  const ch=world.chests.find(c=>!c.opened&&
+    Math.abs((player.x+player.w/2)-(c.x+c.w/2))<52&&
+    Math.abs((player.y+player.h/2)-(c.y+c.h/2))<62);
+  if(ch){activeChest=ch;openQuiz();}
+  else showMsg('📦 Acércate a un cofre');
+}
+
+function openQuiz(){
+  quizOpen=true;
+  if(qPool.length===0)qPool=[...ALL_Q].sort(()=>Math.random()-.5);
+  const q=qPool.shift();
+  activeChest._q=q;
+
+  document.getElementById('quiz-badge').textContent=q.cat;
+  document.getElementById('quiz-q').textContent=q.q;
+  const fb=document.getElementById('quiz-feedback');
+  fb.style.display='none';fb.textContent='';
+  document.getElementById('quiz-continue').style.display='none';
+
+  const el=document.getElementById('quiz-opts');el.innerHTML='';
+  q.opts.forEach((o,i)=>{
+    const b=document.createElement('button');
+    b.className='qopt';b.textContent=o;
+    b.onclick=()=>answerQuiz(i,q);
+    el.appendChild(b);
+  });
+  document.getElementById('quiz-overlay').style.display='flex';
+}
+
+function answerQuiz(idx,q){
+  document.querySelectorAll('.qopt').forEach((b,i)=>{
+    b.disabled=true;
+    if(i===q.ans)b.classList.add('correct');
+    else if(i===idx&&idx!==q.ans)b.classList.add('wrong');
+  });
+  const ok=idx===q.ans;
+  const fb=document.getElementById('quiz-feedback');
+  fb.style.display='block';
+  fb.textContent=(ok?'✅ ¡Correcto! ':'❌ Incorrecto. ')+q.fact;
+  if(ok){player.coins+=q.reward;document.getElementById('quiz-continue').textContent=`💰 +${q.reward} monedas · CONTINUAR`;}
+  else{player.hp=Math.max(0,player.hp-1);player.coins+=5;document.getElementById('quiz-continue').textContent=`💔 -1 vida · CONTINUAR`;}
+  activeChest.opened=true;
+  document.getElementById('quiz-continue').style.display='block';
+  updateHUD();
+}
+
+function continueAfterQuiz(){
+  document.getElementById('quiz-overlay').style.display='none';
+  quizOpen=false;activeChest=null;
+}
+
+// ── NIVELES ──────────────────────────────────────────────────
+function nextLevel(){
+  if(level>=3){showVictory();return;}
+  level++;
+  world=buildWorld(level);
+  player.x=120;player.y=180;player.vx=0;player.vy=0;
+  worldOffset=0;
+  showLevelBanner();
+}
+
+const LEVEL_NAMES=['','🌿 Bosque Verde','🪨 Cueva Profunda','⛰️ Pico Nevado'];
+function showLevelBanner(){
+  const el=document.getElementById('level-banner');
+  el.style.transition='none';
+  el.innerHTML=`NIVEL ${level}<br><span style="font-size:14px;color:#5aff5a">${LEVEL_NAMES[level]}</span>`;
+  el.style.opacity='1';
+  setTimeout(()=>{el.style.transition='opacity 1.4s';el.style.opacity='0';},2500);
+}
+
+function showVictory(){
+  gameRunning=false;
+  document.getElementById('v-coins').textContent=`💰 ${player.coins} monedas ganadas`;
+  document.getElementById('victory-screen').style.display='flex';
+}
+
+// ── HUD ──────────────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('h-hp').textContent='❤️'.repeat(Math.max(0,player.hp));
+  document.getElementById('h-lvl').textContent=level;
+  document.getElementById('h-coins').textContent=player.coins;
+  const op=world.chests.filter(c=>c.opened).length;
+  document.getElementById('h-chests').textContent=`${op}/${world.chests.length}`;
+}
+
+function showMsg(t){
+  const el=document.getElementById('msg');
+  el.textContent=t;el.style.opacity='1';
+  clearTimeout(msgTimer);msgTimer=setTimeout(()=>el.style.opacity='0',2000);
+}
+
+// ── CONTROLES TÁCTILES ───────────────────────────────────────
+function setupTouch(){
+  const btnL=document.getElementById('btn-left');
+  const btnR=document.getElementById('btn-right');
+  const btnJ=document.getElementById('btn-jump');
+  const btnO=document.getElementById('btn-open');
+
+  const on=(el,key,val)=>{
+    el.addEventListener('touchstart',e=>{e.preventDefault();keys[key]=val;},{passive:false});
+    el.addEventListener('touchend',e=>{e.preventDefault();keys[key]=false;},{passive:false});
+    el.addEventListener('touchcancel',e=>{e.preventDefault();keys[key]=false;},{passive:false});
+  };
+  on(btnL,'left',true);on(btnR,'right',true);
+  btnJ.addEventListener('touchstart',e=>{e.preventDefault();if(player.onGround){player.vy=-12;player.onGround=false;}},{passive:false});
+  btnO.addEventListener('touchstart',e=>{e.preventDefault();if(gameRunning&&!quizOpen)tryOpenChest();},{passive:false});
+
+  // Teclado
+  document.addEventListener('keydown',e=>{
+    if(e.code==='ArrowLeft'||e.code==='KeyA')keys.left=true;
+    if(e.code==='ArrowRight'||e.code==='KeyD')keys.right=true;
+    if(e.code==='Space'||e.code==='ArrowUp'||e.code==='KeyW'){
+      e.preventDefault();
+      if(player.onGround){player.vy=-12;player.onGround=false;}
+    }
+    if(e.code==='KeyE'&&gameRunning&&!quizOpen)tryOpenChest();
+  });
+  document.addEventListener('keyup',e=>{
+    if(e.code==='ArrowLeft'||e.code==='KeyA')keys.left=false;
+    if(e.code==='ArrowRight'||e.code==='KeyD')keys.right=false;
+  });
+}
+
+// ── LOOP ─────────────────────────────────────────────────────
+function loop(){
+  requestAnimationFrame(loop);
+  if(!gameRunning)return;
+  ctx.clearRect(0,0,W,H);
+  drawBG();drawPlatforms();drawChests();drawPlayer();
+  physics();updateHUD();
+}
+
+function startGame(){
+  level=1;
+  player.hp=3;player.coins=0;player.x=120;player.y=180;player.vx=0;player.vy=0;
+  qPool=[...ALL_Q].sort(()=>Math.random()-.5);
+  world=buildWorld(1);worldOffset=0;
+  document.getElementById('title-screen').style.display='none';
+  document.getElementById('victory-screen').style.display='none';
+  gameRunning=true;
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(err => console.log(err));
+  }
+  showLevelBanner();
+}
+
+function restartGame(){
+  document.getElementById('victory-screen').style.display='none';
+  startGame();
+}
+
+setupTouch();
+loop();
+</script>
+</body>
+</html>
