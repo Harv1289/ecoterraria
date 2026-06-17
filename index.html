@@ -72,7 +72,6 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
 <div id="wrapper">
   <canvas id="c"></canvas>
 
-  <!-- HUD -->
   <div id="hud">
     <div class="hud-pill">❤️ <b id="h-hp">3</b></div>
     <div class="hud-pill">🏆 <b id="h-lvl">1</b>/3</div>
@@ -80,13 +79,10 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
     <div class="hud-pill">📦 <b id="h-chests">0/0</b></div>
   </div>
 
-  <!-- Mensaje -->
   <div id="msg"></div>
 
-  <!-- Banner nivel -->
   <div id="level-banner"></div>
 
-  <!-- Controles táctiles -->
   <div id="touch-controls">
     <div class="dpad">
       <div class="tbtn" id="btn-left">◀</div>
@@ -98,7 +94,6 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
     </div>
   </div>
 
-  <!-- Quiz -->
   <div id="quiz-overlay">
     <div id="quiz-box">
       <div id="quiz-title">🌿 PREGUNTA AMBIENTAL</div>
@@ -110,7 +105,6 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
     </div>
   </div>
 
-  <!-- Pantalla inicio -->
   <div id="title-screen">
     <div style="font-size:52px">🌍</div>
     <h1>ECOTERRARIA</h1>
@@ -123,8 +117,8 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
       Creado por Harley Revelo
     </div>
   </div>
+  </div>
 
-  <!-- Pantalla victoria -->
   <div id="victory-screen">
     <div class="v-trophy">🏆</div>
     <div class="v-title">¡FELICITACIONES!</div>
@@ -136,6 +130,13 @@ canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges;touch
       <b style="color:#ffdf2a">Carrera de Recursos Naturales Renovables</b> 🌳🌊☀️
     </div>
     <button id="btn-restart" onclick="restartGame()">🔄 JUGAR DE NUEVO</button>
+  </div>
+
+  <div id="gameover-screen" style="position:absolute;inset:0;background:linear-gradient(180deg,#200000 0%,#0a0000 100%);display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;padding:24px;text-align:center;">
+    <div class="v-trophy">💀</div>
+    <div style="font-size:28px;font-weight:900;color:#ff5555;text-shadow:0 0 20px #ff000088;">¡FIN DEL JUEGO!</div>
+    <div style="font-size:16px;font-weight:700;color:#ffaaaa;line-height:1.6;max-width:340px;">Te has quedado sin vidas.<br>¡La naturaleza necesita que lo intentes otra vez!</div>
+    <button onclick="restartGame()" style="background:#5a1a1a;border:2px solid #df5a5a;border-radius:12px;padding:14px 40px;font-size:16px;font-weight:800;color:#ffaaaa;cursor:pointer;margin-top:14px;">🔄 INTENTAR DE NUEVO</button>
   </div>
 </div>
 
@@ -366,7 +367,15 @@ function physics(){
   });
 
   if(player.x<0)player.x=0;
-  if(player.y>H+80){player.hp=Math.max(0,player.hp-1);player.x=120;player.y=180;showMsg('💀 -1 vida');}
+  if(player.y>H+80){
+    player.hp = Math.max(0, player.hp - 1);
+    if(player.hp <= 0) {
+      showGameOver();
+    } else {
+      player.x = 120; player.y = 180;
+      showMsg('💀 -1 vida');
+    }
+  }
 
   const targetOff=player.x-W/3;
   worldOffset=Math.max(0,Math.min(targetOff,2800-W));
@@ -416,8 +425,18 @@ function answerQuiz(idx,q){
   const fb=document.getElementById('quiz-feedback');
   fb.style.display='block';
   fb.textContent=(ok?'✅ ¡Correcto! ':'❌ Incorrecto. ')+q.fact;
-  if(ok){player.coins+=q.reward;document.getElementById('quiz-continue').textContent=`💰 +${q.reward} monedas · CONTINUAR`;}
-  else{player.hp=Math.max(0,player.hp-1);player.coins+=5;document.getElementById('quiz-continue').textContent=`💔 -1 vida · CONTINUAR`;}
+  if(ok){
+    player.coins += q.reward;
+    document.getElementById('quiz-continue').textContent = `💰 +${q.reward} monedas · CONTINUAR`;
+  } else {
+    player.hp = Math.max(0, player.hp - 1);
+    player.coins += 5;
+    if(player.hp <= 0) {
+      document.getElementById('quiz-continue').textContent = `💀 Fin del juego · CONTINUAR`;
+    } else {
+      document.getElementById('quiz-continue').textContent = `💔 -1 vida · CONTINUAR`;
+    }
+  }
   activeChest.opened=true;
   document.getElementById('quiz-continue').style.display='block';
   updateHUD();
@@ -426,6 +445,7 @@ function answerQuiz(idx,q){
 function continueAfterQuiz(){
   document.getElementById('quiz-overlay').style.display='none';
   quizOpen=false;activeChest=null;
+  if(player.hp <= 0) showGameOver();
 }
 
 // ── NIVELES ──────────────────────────────────────────────────
@@ -451,6 +471,11 @@ function showVictory(){
   gameRunning=false;
   document.getElementById('v-coins').textContent=`💰 ${player.coins} monedas ganadas`;
   document.getElementById('victory-screen').style.display='flex';
+}
+
+function showGameOver() {
+  gameRunning = false;
+  document.getElementById('gameover-screen').style.display = 'flex';
 }
 
 // ── HUD ──────────────────────────────────────────────────────
@@ -514,8 +539,11 @@ function startGame(){
   player.hp=3;player.coins=0;player.x=120;player.y=180;player.vx=0;player.vy=0;
   qPool=[...ALL_Q].sort(()=>Math.random()-.5);
   world=buildWorld(1);worldOffset=0;
+  
   document.getElementById('title-screen').style.display='none';
   document.getElementById('victory-screen').style.display='none';
+  document.getElementById('gameover-screen').style.display='none';
+  
   gameRunning=true;
   if (document.documentElement.requestFullscreen) {
     document.documentElement.requestFullscreen().catch(err => console.log(err));
@@ -525,6 +553,7 @@ function startGame(){
 
 function restartGame(){
   document.getElementById('victory-screen').style.display='none';
+  document.getElementById('gameover-screen').style.display='none';
   startGame();
 }
 
